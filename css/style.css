@@ -563,7 +563,7 @@ input:focus, textarea:focus, select:focus {
     margin-top: 2rem;
     padding: 1.5rem;
     background: var(--surface);
-    border-radius: var(--radius);
+    border-radius: var (--radius);
     border: 1px solid var(--border);
 }
 
@@ -1034,6 +1034,89 @@ input:focus, textarea:focus, select:focus {
 
 /* ...existing code... */
 
+/* Model turbo indicator */
+.model-turbo {
+    color: #22c55e !important; /* verde brillante */
+    font-weight: 500;
+}
+
+.model-turbo::after {
+    content: " ⚡"; /* emoji fulmine */
+}
+
+/* Rimuovi i vecchi stili di velocità */
+.speed-fast,
+.speed-medium,
+.speed-slow,
+.speed-legend,
+.speed-indicator,
+.model-tooltip,
+.speed-legend-item {
+    display: none;
+}
+
+/* ...existing code... */
+
+/* Model info banner */
+.info-banner {
+    background: var(--surface-hover);
+    border-left: 4px solid var(--primary);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.info-banner h4 {
+    color: var(--text);
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.info-banner ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.info-banner li {
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.info-banner li:last-child {
+    margin-bottom: 0;
+}
+
+.info-banner .highlight {
+    color: #22c55e;
+    font-weight: 500;
+}
+
+.info-banner .subtle {
+    color: var(--text);
+    font-style: italic;
+}
+
+/* ...existing code... */
+
+/* ...existing code... */
+
+.info-banner .tip {
+    color: #0ea5e9;  /* primary blue */
+    font-weight: 500;
+    font-style: italic;
+}
+
+/* ...existing code... */
+
+.info-banner .info {
+    color: #94a3b8;  /* subtle gray */
+    font-style: italic;
+}
+
+/* ...existing code... */
+
 .generate-button-container {
     margin: 1.5rem 0;
     text-align: center;
@@ -1083,4 +1166,30 @@ input:focus, textarea:focus, select:focus {
 
 .prompt-preview.updating {
     animation: highlight 0.5s ease;
+}
+
+/* Model speed indicators */
+.model-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+}
+
+.model-select {
+    position: relative;
+    width: 100%;
+}
+
+.model-select:hover .model-tooltip {
+    display: block;
+}
+
+.speed-legend {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
 }

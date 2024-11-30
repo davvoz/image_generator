@@ -9,7 +9,6 @@ import {
     TECHNIQUES,
     CATEGORIES 
 } from './utils/constants.js';
-import { PromptBuilder } from './utils/PromptBuilder.js';
 import { Spinner } from './components/Spinner.js';
 
 const IMAGE_PRESETS = [
@@ -29,17 +28,14 @@ export class App {
         this.container.className = 'container';
         this.root.appendChild(this.container);
         
-        // Remove spinner initialization - we won't need the global spinner anymore
-        this.promptBuilder = new PromptBuilder();
         this.initializeState();
-        
         this.render();
     }
 
     initializeState() {
         const savedState = localStorage.getItem('appState');
         const defaultState = {
-            promptText: '',
+            promptText: '', // Semplifichiamo usando solo promptText
             isGenerating: false,
             generatedImages: [],
             apiKey: localStorage.getItem('huggingface_api_key') || '',
@@ -54,7 +50,6 @@ export class App {
             },
             currentSeed: null,
             useSavedSeed: false,
-            manualEditMode: false,
             selectedModel: {
                 id: MODELS.SDXL_BASE.id,
                 name: MODELS.SDXL_BASE.name
@@ -99,231 +94,24 @@ export class App {
             ${this.renderHeader()}
             ${this.renderApiKeySection()}
             
-            <div class="card prompt-builder">
+            <div class="card prompt-input">
                 <h2>Create Your Prompt</h2>
-                
-                <!-- Add manual edit toggle -->
-                <div class="edit-mode-toggle">
-                    <button class="button button-secondary" id="toggleEditMode">
-                        ${this.state.manualEditMode ? 'Use Builder' : 'Edit Manually'}
-                    </button>
+                <div class="input-group">
+                    <label>Enter your prompt</label>
+                    <textarea 
+                        id="promptText" 
+                        rows="4" 
+                        placeholder="Describe what you want to generate..."
+                    >${this.state.promptText}</textarea>
+                    <small>Be descriptive for better results</small>
                 </div>
-
-                ${this.state.manualEditMode ? this.renderManualEdit() : this.renderPromptBuilder()}
+                ${this.renderGenerateButton()}
             </div>
 
             ${this.renderImageGrid()}
         `;
 
         this.setupEventListeners();
-    }
-
-    renderManualEdit() {
-        return `
-            <div class="manual-edit-section">
-                <div class="input-group">
-                    <label>Edit Prompt Directly</label>
-                    <textarea 
-                        id="manualPrompt" 
-                        rows="4" 
-                        placeholder="Enter your prompt here..."
-                    >${this.promptBuilder.build()}</textarea>
-                    <small>Separate different elements with commas</small>
-                </div>
-                ${this.renderGenerateButton()} <!-- Move generate button here -->
-            </div>
-        `;
-    }
-
-    renderPromptBuilder() {
-        return `
-            <div class="prompt-wizard">
-                <!-- Main Content Area -->
-                <div class="wizard-content">
-                    <!-- Prompt Building Area -->
-                    <div class="builder-area">
-                        <div class="input-group">
-                            <label>What would you like to create?</label>
-                            <div class="search-with-suggestions">
-                                <input type="text" id="subject" 
-                                       placeholder="Enter your subject (e.g., cat, landscape, portrait)">
-                                <div class="quick-picks">
-                                    ${this.renderQuickSubjects()}
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="input-group">
-                            <label>Describe your image</label>
-                            <div class="attribute-selector">
-                                ${this.renderAttributeCategories()}
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Preview Panel -->
-                    <div class="preview-panel">
-                        <h3>Current Prompt</h3>
-                        <div class="prompt-preview">
-                            ${this.promptBuilder.build()}
-                        </div>
-                        ${this.renderGenerateButton()}
-                        <div class="preview-actions">
-                            <button class="button" id="editPrompt">
-                                <i class="icon-edit"></i> Edit
-                            </button>
-                            <button class="button" id="copyPrompt">
-                                <i class="icon-copy"></i> Copy
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    renderAttributeCategories() {
-        const categories = [
-            {
-                name: 'Attributes',
-                type: 'main.attributes',
-                items: [
-                    'beautiful', 'old', 'young', 'small', 'large',
-                    'detailed', 'simple', 'complex', 'realistic', 'stylized'
-                ]
-            },
-            {
-                name: 'Style',
-                type: 'style',
-                items: [
-                    'photorealistic', 'cinematic', 'artistic', 'cartoon',
-                    'anime', 'oil painting', 'watercolor', 'digital art'
-                ]
-            },
-            {
-                name: 'Mood',
-                type: 'mood',
-                items: [
-                    'peaceful', 'dramatic', 'mysterious', 'energetic',
-                    'calm', 'chaotic', 'serene', 'tense', 'joyful'
-                ]
-            },
-            {
-                name: 'Lighting',
-                type: 'lighting',
-                items: [
-                    'bright', 'dark', 'sunlight', 'moonlight', 'studio lighting',
-                    'natural light', 'dramatic lighting', 'soft light'
-                ]
-            }
-        ];
-
-        return `
-            <div class="attribute-categories">
-                ${categories.map(category => `
-                    <div class="attribute-category">
-                        <h4>${category.name}</h4>
-                        <div class="attribute-buttons">
-                            ${category.items.map(item => {
-                                const isActive = this.promptBuilder.components[category.type]?.has(item.toLowerCase());
-                                return `
-                                    <button 
-                                        class="tag-button ${isActive ? 'active' : ''}"
-                                        data-category="${category.type}"
-                                        data-value="${item}"
-                                    >
-                                        ${item}
-                                    </button>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-        `;
-    }
-
-    buildFinalPrompt() {
-        // Remove old state-based prompt building
-        return this.promptBuilder.build();
-    }
-
-    renderApiKeySection() {
-        return `
-            <div class="card api-key-section">
-                <div class="input-group">
-                    <label>API Key</label>
-                    <input type="password" id="apiKey" value="${this.state.apiKey}" 
-                           placeholder="Enter your Hugging Face API key">
-                    <small>Get your API key from <a href="https://huggingface.co/settings/tokens" 
-                           target="_blank">huggingface.co</a></small>
-                </div>
-                <div class="settings-grid">
-                    <div class="input-group">
-                        <label>Model Selection</label>
-                        <select id="modelSelect">
-                            ${Object.values(MODELS).map(model => `
-                                <option value="${model.id}" 
-                                    ${this.state.selectedModel?.id === model.id ? 'selected' : ''}>
-                                    ${model.name}
-                                </option>
-                            `).join('')}
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>Image Size</label>
-                        <div class="size-presets">
-                            <select id="sizePreset">
-                                ${IMAGE_PRESETS.map(preset => `
-                                    <option value="${preset.value}"
-                                        data-width="${preset.w}"
-                                        data-height="${preset.h}">
-                                        ${preset.label}
-                                    </option>
-                                `).join('')}
-                            </select>
-                            <div class="custom-size-inputs" style="display: none;">
-                                <input type="number" id="width" placeholder="Width" min="256" max="1280" step="64">
-                                <input type="number" id="height" placeholder="Height" min="256" max="1280" step="64">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    renderButtons() {
-        return `
-            <div class="button-group">
-                <button class="button button-secondary" id="randomPrompt">Random Prompt</button>
-                <button class="button button-primary" id="generate" 
-                        ${(!this.state.apiKey ) ? 'disabled' : ''}>
-                    ${this.state.isGenerating ? 'Generating...' : 'Generate Image'}
-                </button>
-            </div>
-        `;
-    }
-
-    renderImageGrid() {
-        return `
-            <div class="card">
-                <h2>Generated Images</h2>
-                ${this.state.isGenerating ? `
-                    <div class="generating-preview">
-                        <div class="preview-placeholder">
-                            <div class="spinner"></div>
-                            <p>Generating new image...</p>
-                        </div>
-                    </div>
-                ` : ''}
-                <div class="image-grid">
-                    ${this.state.generatedImages.map(image => `
-                        ${this.renderImageCard(image)}
-                    `).join('')}
-                </div>
-            </div>
-        `;
     }
 
     async generateImage() {
@@ -333,24 +121,24 @@ export class App {
                 return;
             }
 
-            const promptText = this.state.manualEditMode
-                ? document.getElementById('manualPrompt')?.value?.trim()
-                : this.promptBuilder.build();
+            const promptText = document.getElementById('promptText')?.value?.trim();
 
             if (!promptText) {
                 alert('Please enter a prompt');
                 return;
             }
 
-            const generationId = Date.now();
+            // Aggiungiamo un timestamp al generationId per renderlo unico anche con lo stesso prompt
+            const generationId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
             this.state.activeGenerations.add(generationId);
 
             const previewCard = {
-                id: `preview-${generationId}`,
+                id: `preview-${generationId}`, // ID univoco per la preview
                 prompt: promptText,
                 isLoading: true,
                 timestamp: new Date().toISOString(),
-                model: this.state.selectedModel.name
+                model: this.state.selectedModel.name,
+                uniqueId: generationId // Aggiungiamo un identificatore univoco
             };
 
             this.state.generatedImages.unshift(previewCard);
@@ -361,14 +149,18 @@ export class App {
                     prompt: promptText,
                     apiKey: this.state.apiKey,
                     model: this.state.selectedModel,
-                    seed: this.state.useSavedSeed ? this.state.currentSeed : null,
+                    seed: this.state.useSavedSeed ? this.state.currentSeed : Math.floor(Math.random() * 2147483647), // Forziamo sempre un nuovo seed se non è specificato
                     width: this.state.imageSize?.width,
-                    height: this.state.imageSize?.height
+                    height: this.state.imageSize?.height,
+                    uniqueId: generationId // Passiamo l'ID univoco al service
                 });
 
                 this.state.generatedImages = this.state.generatedImages
                     .filter(img => img.id !== `preview-${generationId}`);
-                this.state.generatedImages.unshift(response);
+                this.state.generatedImages.unshift({
+                    ...response,
+                    uniqueId: generationId // Manteniamo l'ID univoco nell'immagine generata
+                });
                 this.state.currentSeed = response.seed;
 
             } catch (error) {
@@ -387,311 +179,253 @@ export class App {
         }
     }
 
-    // Nuovo metodo per renderizzare la preview durante la generazione
-    renderGeneratingPreview() {
-        const previewSection = document.createElement('div');
-        previewSection.className = 'generating-preview';
-        previewSection.innerHTML = `
-            <div class="preview-placeholder">
-                <div class="spinner"></div>
-                <p>Generating new image...</p>
-            </div>
-        `;
-        
-        const imageGrid = document.querySelector('.image-grid');
-        if (imageGrid) {
-            imageGrid.insertBefore(previewSection, imageGrid.firstChild);
-        }
-    }
-
-    renderGenerateButton() {
-        const isDisabled = !this.state.apiKey;
-        const activeCount = this.state.activeGenerations?.size || 0;
-        const buttonText = activeCount > 0 
-            ? `Generate Image (${activeCount} active)`
-            : 'Generate Image';
-        
-        return `
-            <div class="generate-button-container">
-                <button 
-                    id="generateButton"
-                    class="button button-primary generate-button" 
-                    ${isDisabled ? 'disabled' : ''}
-                    data-count="${activeCount || ''}"
-                >
-                    ${buttonText}
-                </button>
-            </div>
-        `;
-    }
-
     setupEventListeners() {
-        try {
-            // Gestione unificata del pulsante generate
-            const generateBtn = document.getElementById('generateButton');
-            if (!generateBtn) {
-                console.error('Generate button not found in DOM');
-                setTimeout(() => this.render(), 100);
-                return;
-            }
+        // Semplifichiamo gli event listener
+        const generateBtn = document.getElementById('generateButton');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', () => this.generateImage());
+        }
 
-            generateBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation(); // Previene doppi click
-                console.log('Generate button clicked');
-                this.generateImage();
+        // Prompt text listener
+        const promptText = document.getElementById('promptText');
+        if (promptText) {
+            promptText.addEventListener('input', (e) => {
+                this.state.promptText = e.target.value;
+                this.saveState();
             });
+        }
 
-            // Rimuovi il vecchio listener duplicato
-            /* ...existing code... */
-            
-            /* ...existing code... */
-            // Add toggle edit mode handler
-            document.getElementById('toggleEditMode')?.addEventListener('click', () => {
-                this.state.manualEditMode = !this.state.manualEditMode;
+        // API Key listener
+        const apiKeyInput = document.getElementById('apiKey');
+        if (apiKeyInput) {
+            apiKeyInput.addEventListener('input', (e) => {
+                this.state.apiKey = e.target.value;
+                localStorage.setItem('huggingface_api_key', e.target.value);
                 this.render();
             });
+        }
 
-            // Add manual prompt handler
-            document.getElementById('manualPrompt')?.addEventListener('input', (e) => {
-                console.log('Manual prompt updated:', e.target.value); // Debug log
-                this.state.promptText = e.target.value;
-            });
-
-            // API Key listener
-            const apiKeyInput = document.getElementById('apiKey');
-            if (apiKeyInput) {
-                apiKeyInput.addEventListener('input', (e) => {
-                    this.state.apiKey = e.target.value;
-                    localStorage.setItem('huggingface_api_key', e.target.value);
-                    this.render();
-                });
-            }
-
-            // Subject input listener
-            const subjectInput = document.getElementById('subject');
-            if (subjectInput) {
-                subjectInput.addEventListener('input', (e) => {
-                    this.promptBuilder.setSubject(e.target.value);
-                    this.updatePromptPreview();
-                });
-            }
-
-            // Style buttons listeners
-            document.querySelectorAll('.style-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const style = e.target.dataset.style;
-                    this.promptBuilder.setStyle(style);
-                    this.updatePromptPreview();
-                    // Update UI to show active style
-                    document.querySelectorAll('.style-btn').forEach(b => b.classList.remove('active'));
-                    e.target.classList.add('active');
-                });
-            });
-
-            // Detail selectors listeners
-            ['lighting', 'color', 'mood'].forEach(detail => {
-                const select = document.getElementById(detail);
-                if (select) {
-                    select.addEventListener('change', (e) => {
-                        this.state.promptBuilder[detail] = e.target.value;
-                        this.updatePromptPreview();
-                    });
-                }
-            });
-
-            // Edit manually button
-            const editBtn = document.getElementById('editPrompt');
-            if (editBtn) {
-                editBtn.addEventListener('click', () => {
-                    const finalPrompt = this.buildFinalPrompt();
-                    this.state.promptText = finalPrompt;
-                    // Show manual edit modal or transform preview to editable
-                    this.showManualEditModal(finalPrompt);
-                });
-            }
-
-            // Quick suggestions
-            document.querySelectorAll('.tag').forEach(tag => {
-                tag.addEventListener('click', (e) => {
-                    const value = e.target.dataset.value;
-                    const type = e.target.dataset.type;
-                    if (value) {
-                        if (type === 'adjective') {
-                            this.promptBuilder.addAdjective(value);
-                        } else {
-                            this.promptBuilder.setSubject(value);
-                            const subjectInput = document.getElementById('subject');
-                            if (subjectInput) {
-                                subjectInput.value = value;
-                            }
-                        }
-                        this.updatePromptPreview();
-                    }
-                });
-            });
-
-            // Image actions
-            document.querySelectorAll('.action-button').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const action = e.target.closest('.action-button').dataset.action;
-                    const imageId = e.target.closest('.action-button').dataset.id;
-                    const image = this.state.generatedImages.find(img => img.id === parseInt(imageId));
-                    
-                    if (image) {
-                        if (action === 'download') {
-                            this.downloadImage(image);
-                        } else if (action === 'copy') {
-                            this.copyPrompt(image);
-                        }
-                    }
-                });
-            });
-
-            // Seed controls
-            const useSeedCheckbox = document.getElementById('useSeedCheckbox');
-            const seedInput = document.getElementById('seedInput');
-            
-            if (useSeedCheckbox) {
-                useSeedCheckbox.addEventListener('change', (e) => {
-                    this.state.useSavedSeed = e.target.checked;
-                    if (seedInput) {
-                        seedInput.disabled = !e.target.checked;
-                        if (e.target.checked && !this.state.currentSeed) {
-                            this.state.currentSeed = Math.floor(Math.random() * 2147483647);
-                            seedInput.value = this.state.currentSeed;
-                        }
-                    }
-                });
-            }
-
-            if (seedInput) {
-                seedInput.addEventListener('change', (e) => {
-                    this.state.currentSeed = parseInt(e.target.value) || null;
-                });
-            }
-
-            const copySeedBtn = document.getElementById('copySeed');
-            if (copySeedBtn) {
-                copySeedBtn.addEventListener('click', () => {
-                    navigator.clipboard.writeText(this.state.currentSeed.toString())
-                        .then(() => alert('Seed copied to clipboard!'));
-                });
-            }
-
-            // Add new event listeners for prompt builder
-            document.getElementById('randomize')?.addEventListener('click', () => {
-                this.promptBuilder.generateRandom();
+        // Subject input listener
+        const subjectInput = document.getElementById('subject');
+        if (subjectInput) {
+            subjectInput.addEventListener('input', (e) => {
+                this.promptBuilder.setSubject(e.target.value);
                 this.updatePromptPreview();
             });
+        }
 
-            document.querySelectorAll('.style-btn')?.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const style = e.target.dataset.style;
-                    this.promptBuilder.setStyle(style);
+        // Style buttons listeners
+        document.querySelectorAll('.style-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const style = e.target.dataset.style;
+                this.promptBuilder.setStyle(style);
+                this.updatePromptPreview();
+                // Update UI to show active style
+                document.querySelectorAll('.style-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+            });
+        });
+
+        // Detail selectors listeners
+        ['lighting', 'color', 'mood'].forEach(detail => {
+            const select = document.getElementById(detail);
+            if (select) {
+                select.addEventListener('change', (e) => {
+                    this.state.promptBuilder[detail] = e.target.value;
                     this.updatePromptPreview();
                 });
+            }
+        });
+
+        // Edit manually button
+        const editBtn = document.getElementById('editPrompt');
+        if (editBtn) {
+            editBtn.addEventListener('click', () => {
+                const finalPrompt = this.buildFinalPrompt();
+                this.state.promptText = finalPrompt;
+                // Show manual edit modal or transform preview to editable
+                this.showManualEditModal(finalPrompt);
+            });
+        }
+
+        // Quick suggestions
+        document.querySelectorAll('.tag').forEach(tag => {
+            tag.addEventListener('click', (e) => {
+                const value = e.target.dataset.value;
+                const type = e.target.dataset.type;
+                if (value) {
+                    if (type === 'adjective') {
+                        this.promptBuilder.addAdjective(value);
+                    } else {
+                        this.promptBuilder.setSubject(value);
+                        const subjectInput = document.getElementById('subject');
+                        if (subjectInput) {
+                            subjectInput.value = value;
+                        }
+                    }
+                    this.updatePromptPreview();
+                }
+            });
+        });
+
+        // Image actions
+        document.querySelectorAll('.action-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const action = e.target.closest('.action-button').dataset.action;
+                const imageId = e.target.closest('.action-button').dataset.id;
+                const image = this.state.generatedImages.find(img => img.id === parseInt(imageId));
+                
+                if (image) {
+                    if (action === 'download') {
+                        this.downloadImage(image);
+                    } else if (action === 'copy') {
+                        this.copyPrompt(image);
+                    }
+                }
+            });
+        });
+
+        // Seed controls
+        const useSeedCheckbox = document.getElementById('useSeedCheckbox');
+        const seedInput = document.getElementById('seedInput');
+        
+        if (useSeedCheckbox) {
+            useSeedCheckbox.addEventListener('change', (e) => {
+                this.state.useSavedSeed = e.target.checked;
+                if (seedInput) {
+                    seedInput.disabled = !e.target.checked;
+                    if (e.target.checked && !this.state.currentSeed) {
+                        this.state.currentSeed = Math.floor(Math.random() * 2147483647);
+                        seedInput.value = this.state.currentSeed;
+                    }
+                }
+            });
+        }
+
+        if (seedInput) {
+            seedInput.addEventListener('change', (e) => {
+                this.state.currentSeed = parseInt(e.target.value) || null;
+            });
+        }
+
+        const copySeedBtn = document.getElementById('copySeed');
+        if (copySeedBtn) {
+            copySeedBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(this.state.currentSeed.toString())
+                    .then(() => alert('Seed copied to clipboard!'));
+            });
+        }
+
+        // Add new event listeners for prompt builder
+        document.getElementById('randomize')?.addEventListener('click', () => {
+            this.promptBuilder.generateRandom();
+            this.updatePromptPreview();
+        });
+
+        document.querySelectorAll('.style-btn')?.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const style = e.target.dataset.style;
+                this.promptBuilder.setStyle(style);
+                this.updatePromptPreview();
+            });
+        });
+
+        // Add model selection listener
+        const modelSelect = document.getElementById('modelSelect');
+        if (modelSelect) {
+            modelSelect.addEventListener('change', (e) => {
+                const selectedModel = Object.values(MODELS)
+                    .find(model => model.id === e.target.value);
+                if (selectedModel) {
+                    this.state.selectedModel = {
+                        id: selectedModel.id,
+                        name: selectedModel.name
+                    };
+                    this.saveState();
+                }
+            });
+        }
+
+        // Add size preset handler
+        const sizePreset = document.getElementById('sizePreset');
+        const customSizeInputs = document.querySelector('.custom-size-inputs');
+        if (sizePreset) {
+            // Set initial value from state
+            sizePreset.value = this.state.imageSize?.preset || 'hd_square';
+            
+            sizePreset.addEventListener('change', (e) => {
+                const option = e.target.selectedOptions[0];
+                const width = parseInt(option.dataset.width);
+                const height = parseInt(option.dataset.height);
+                const modelConfig = MODELS[this.state.selectedModel.id]?.validSizes || {
+                    minWidth: 512, maxWidth: 1024,
+                    minHeight: 512, maxHeight: 1024,
+                    step: 8
+                };
+
+                if (e.target.value === 'custom') {
+                    customSizeInputs.style.display = 'flex';
+                    // Set custom inputs to current values
+                    document.getElementById('width').value = this.state.imageSize?.width || modelConfig.minWidth;
+                    document.getElementById('height').value = this.state.imageSize?.height || modelConfig.minHeight;
+                    document.getElementById('width').max = modelConfig.maxWidth;
+                    document.getElementById('height').max = modelConfig.maxHeight;
+                    document.getElementById('width').step = modelConfig.step;
+                    document.getElementById('height').step = modelConfig.step;
+                } else {
+                    customSizeInputs.style.display = 'none';
+                    // Update state with preset values
+                    this.state.imageSize = {
+                        width: Math.min(Math.max(width, modelConfig.minWidth), modelConfig.maxWidth),
+                        height: Math.min(Math.max(height, modelConfig.minHeight), modelConfig.maxHeight),
+                        preset: e.target.value
+                    };
+                }
+                this.saveState();
             });
 
-            // Add model selection listener
-            const modelSelect = document.getElementById('modelSelect');
-            if (modelSelect) {
-                modelSelect.addEventListener('change', (e) => {
-                    const selectedModel = Object.values(MODELS)
-                        .find(model => model.id === e.target.value);
-                    if (selectedModel) {
-                        this.state.selectedModel = {
-                            id: selectedModel.id,
-                            name: selectedModel.name
+            // Trigger change event to set initial values
+            sizePreset.dispatchEvent(new Event('change'));
+        }
+
+        // Handle custom size inputs
+        ['width', 'height'].forEach(dim => {
+            const input = document.getElementById(dim);
+            if (input) {
+                // Set initial value from state
+                input.value = this.state.imageSize?.[dim] || input.value;
+                
+                input.addEventListener('change', (e) => {
+                    const value = Number(e.target.value);
+                    const modelConfig = MODELS[this.state.selectedModel.id]?.validSizes;
+                    if (value >= (modelConfig?.['min' + dim.charAt(0).toUpperCase() + dim.slice(1)] || 256) && 
+                        value <= (modelConfig?.['max' + dim.charAt(0).toUpperCase() + dim.slice(1)] || 1024)) {
+                        this.state.imageSize = {
+                            ...this.state.imageSize,
+                            [dim]: value,
+                            preset: 'custom'  // Switch to custom when dimensions are manually changed
                         };
+                        // Update preset selector
+                        const sizePreset = document.getElementById('sizePreset');
+                        if (sizePreset) sizePreset.value = 'custom';
                         this.saveState();
                     }
                 });
             }
+        });
 
-            // Add size preset handler
-            const sizePreset = document.getElementById('sizePreset');
-            const customSizeInputs = document.querySelector('.custom-size-inputs');
-            if (sizePreset) {
-                // Set initial value from state
-                sizePreset.value = this.state.imageSize?.preset || 'hd_square';
-                
-                sizePreset.addEventListener('change', (e) => {
-                    const option = e.target.selectedOptions[0];
-                    const width = parseInt(option.dataset.width);
-                    const height = parseInt(option.dataset.height);
-                    const modelConfig = MODELS[this.state.selectedModel.id]?.validSizes || {
-                        minWidth: 512, maxWidth: 1024,
-                        minHeight: 512, maxHeight: 1024,
-                        step: 8
-                    };
-
-                    if (e.target.value === 'custom') {
-                        customSizeInputs.style.display = 'flex';
-                        // Set custom inputs to current values
-                        document.getElementById('width').value = this.state.imageSize?.width || modelConfig.minWidth;
-                        document.getElementById('height').value = this.state.imageSize?.height || modelConfig.minHeight;
-                        document.getElementById('width').max = modelConfig.maxWidth;
-                        document.getElementById('height').max = modelConfig.maxHeight;
-                        document.getElementById('width').step = modelConfig.step;
-                        document.getElementById('height').step = modelConfig.step;
-                    } else {
-                        customSizeInputs.style.display = 'none';
-                        // Update state with preset values
-                        this.state.imageSize = {
-                            width: Math.min(Math.max(width, modelConfig.minWidth), modelConfig.maxWidth),
-                            height: Math.min(Math.max(height, modelConfig.minHeight), modelConfig.maxHeight),
-                            preset: e.target.value
-                        };
-                    }
-                    this.saveState();
-                });
-
-                // Trigger change event to set initial values
-                sizePreset.dispatchEvent(new Event('change'));
+        // Add more event listeners for other components...
+        
+        // Handle image click globally
+        window.handleImageClick = (imageId) => {
+            const image = this.state.generatedImages.find(img => img.id === imageId);
+            if (image) {
+                this.showImageModal(image);
             }
+        };
 
-            // Handle custom size inputs
-            ['width', 'height'].forEach(dim => {
-                const input = document.getElementById(dim);
-                if (input) {
-                    // Set initial value from state
-                    input.value = this.state.imageSize?.[dim] || input.value;
-                    
-                    input.addEventListener('change', (e) => {
-                        const value = Number(e.target.value);
-                        const modelConfig = MODELS[this.state.selectedModel.id]?.validSizes;
-                        if (value >= (modelConfig?.['min' + dim.charAt(0).toUpperCase() + dim.slice(1)] || 256) && 
-                            value <= (modelConfig?.['max' + dim.charAt(0).toUpperCase() + dim.slice(1)] || 1024)) {
-                            this.state.imageSize = {
-                                ...this.state.imageSize,
-                                [dim]: value,
-                                preset: 'custom'  // Switch to custom when dimensions are manually changed
-                            };
-                            // Update preset selector
-                            const sizePreset = document.getElementById('sizePreset');
-                            if (sizePreset) sizePreset.value = 'custom';
-                            this.saveState();
-                        }
-                    });
-                }
-            });
-
-            // Add more event listeners for other components...
-            
-            // Handle image click globally
-            window.handleImageClick = (imageId) => {
-                const image = this.state.generatedImages.find(img => img.id === imageId);
-                if (image) {
-                    this.showImageModal(image);
-                }
-            };
-
-            // Add attribute listeners
-            this.setupAttributeListeners();
-        } catch (error) {
-            console.error('Error in setupEventListeners:', error);
-        }
+        // Add attribute listeners
+        this.setupAttributeListeners();
     }
 
     showManualEditModal(prompt) {
@@ -821,8 +555,11 @@ export class App {
             `;
         }
 
+        // Modifichiamo questa parte per gestire correttamente l'ID
+        const imageId = typeof image.id === 'string' ? `'${image.id}'` : image.id;
+        
         return `
-            <div class="image-card" onclick="handleImageClick(${image.id})">
+            <div class="image-card" onclick="window.handleImageClick(${imageId})">
                 <img src="${image.imageUrl}" alt="${image.prompt}">
                 <div class="image-info">
                     <p class="prompt-text">${image.prompt}</p>
@@ -837,10 +574,10 @@ export class App {
                             ${new Date(image.timestamp).toLocaleString()}
                         </span>
                         <div class="image-actions">
-                            <button class="action-button" data-action="download" data-id="${image.id}">
+                            <button class="action-button" data-action="download" data-id="${imageId}">
                                 💾
                             </button>
-                            <button class="action-button" data-action="copy" data-id="${image.id}">
+                            <button class="action-button" data-action="copy" data-id="${imageId}">
                                 📋
                             </button>
                         </div>
@@ -1138,6 +875,108 @@ export class App {
                 }
             });
         });
+    }
+
+    renderApiKeySection() {
+        return `
+            <div class="card api-key-section">
+                <div class="model-info-banner info-banner">
+                    <h4>📢 Model Status & Recommendations:</h4>
+                    <ul>
+                        <li>🚀 Best performing models right now:
+                            <strong class="highlight">SD 3.5 Turbo</strong> and 
+                            <strong class="highlight">Turbo Hyper Realistic</strong>
+                        </li>
+                        <li>🎨 High quality but slower models:
+                            <span class="subtle">FLUX Midjourney Mix, Midjourney Style, FLUX Super Realism, FLUX Dev</span>
+                        </li>
+                        <li>⚠️ Models might be temporarily unavailable - if one doesn't work, try another!</li>
+                        <li>ℹ️ <span class="info">Note: Image size settings may not affect all models</span></li>
+                    </ul>
+                </div>
+                
+                <div class="input-group">
+                    <label>API Key</label>
+                    <input type="password" id="apiKey" value="${this.state.apiKey}" 
+                           placeholder="Enter your Hugging Face API key">
+                    <small>Get your API key from <a href="https://huggingface.co/settings/tokens" 
+                           target="_blank">huggingface.co</a></small>
+                </div>
+                <div class="settings-grid">
+                    <div class="input-group">
+                        <label>Model Selection</label>
+                        <select id="modelSelect">
+                            ${Object.values(MODELS).map(model => `
+                                <option value="${model.id}" 
+                                    class="${model.isTurbo ? 'model-turbo' : ''}"
+                                    ${this.state.selectedModel?.id === model.id ? 'selected' : ''}>
+                                    ${model.name}
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Image Size</label>
+                        <select id="sizePreset">
+                            ${IMAGE_PRESETS.map(preset => `
+                                <option value="${preset.value}" 
+                                    data-width="${preset.w}" 
+                                    data-height="${preset.h}">
+                                    ${preset.label}
+                                </option>
+                            `).join('')}
+                        </select>
+                        <div class="custom-size-inputs">
+                            <input type="number" id="width" placeholder="Width" min="256">
+                            <input type="number" id="height" placeholder="Height" min="256">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+    }
+
+    renderGenerateButton() {
+        const isDisabled = !this.state.apiKey;
+        const activeCount = this.state.activeGenerations?.size || 0;
+        const buttonText = activeCount > 0 
+            ? `Generate Image (${activeCount} active)`
+            : 'Generate Image';
+        
+        return `
+            <div class="generate-button-container">
+                <button 
+                    id="generateButton"
+                    class="button button-primary generate-button" 
+                    ${isDisabled ? 'disabled' : ''}
+                    data-count="${activeCount || ''}"
+                >
+                    ${buttonText}
+                </button>
+            </div>
+        `;
+    }
+
+    renderImageGrid() {
+        return `
+            <div class="card">
+                <h2>Generated Images</h2>
+                ${this.state.isGenerating ? `
+                    <div class="generating-preview">
+                        <div class="preview-placeholder">
+                            <div class="spinner"></div>
+                            <p>Generating new image...</p>
+                        </div>
+                    </div>
+                ` : ''}
+                <div class="image-grid">
+                    ${this.state.generatedImages.map(image => `
+                        ${this.renderImageCard(image)}
+                    `).join('')}
+                </div>
+            </div>
+        `;
     }
 }
 
